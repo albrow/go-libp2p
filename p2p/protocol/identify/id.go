@@ -415,6 +415,11 @@ func (ids *IDService) consumeObservedAddress(observed []byte, c inet.Conn) {
 		return
 	}
 
+	if !HasConsistentTransport(maddr, ids.Host.Addrs()) {
+		log.Debugf("ignoring observed multiaddr that doesn't match the transports of any addresses we're announcing", c.RemoteMultiaddr())
+		return
+	}
+
 	// ok! we have the observed version of one of our ListenAddresses!
 	log.Debugf("added own observed listen addr: %s --> %s", c.LocalMultiaddr(), maddr)
 	ids.observedAddrs.Add(maddr, c.LocalMultiaddr(), c.RemoteMultiaddr(),
