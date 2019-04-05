@@ -109,10 +109,31 @@ func (cfg *Config) NewNode(ctx context.Context) (host.Host, error) {
 		swrm.Filters = cfg.Filters
 	}
 
+	addrsFactory := cfg.AddrsFactory
+	if cfg.Relay {
+		// If we've enabled the relay, we should filter out relay
+		// addresses by default.
+		//
+		// TODO: We shouldn't be doing this here.
+		oldFactory := addrsFactory
+		addrsFactory = func(addrs []ma.Multiaddr) []ma.Multiaddr {
+			addrs = oldFactory(addrs)
+			raddrs := make([]ma.Multiaddr, 0, len(addrs))
+			for _, addr := range addrs {
+				_, err := addr.ValueForProtocol(circuit.P_CIRCUIT)
+				if err == nil {
+					continue
+				}
+				raddrs = append(raddrs, addr)
+			}
+			return raddrs
+		}
+	}
+
 	var h host.Host
 	h, err = bhost.NewHost(ctx, swrm, &bhost.HostOpts{
 		ConnManager:  cfg.ConnManager,
-		AddrsFactory: cfg.AddrsFactory,
+		AddrsFactory: addrsFactory,
 		NATManager:   cfg.NATManager,
 		EnablePing:   !cfg.DisablePing,
 	})
@@ -206,7 +227,11 @@ func (cfg *Config) NewNode(ctx context.Context) (host.Host, error) {
 		}
 
 		if hop {
-			h = relay.NewRelayHost(swrm.Context(), h.(*bhost.BasicHost), discovery)
+			// advertise ourselves
+			// TODO: Why do we only do this when EnableAutoRelay is
+			// set? This has absolutely _nothing_ to do with
+			// autorelay.
+			relay.Advertise(ctx, discovery)
 		} else {
 			h = relay.NewAutoRelayHost(swrm.Context(), h.(*bhost.BasicHost), discovery, router)
 		}

@@ -29,8 +29,6 @@ var (
 	DesiredRelays = 3
 
 	BootDelay = 20 * time.Second
-
-	unspecificRelay = ma.StringCast("/p2p-circuit")
 )
 
 // AutoRelayHost is a Host that uses relays for connectivity when a NAT is detected.
@@ -70,12 +68,12 @@ func (h *AutoRelayHost) hostAddrs(addrs []ma.Multiaddr) []ma.Multiaddr {
 	if h.addrs != nil && h.autonat.Status() == autonat.NATStatusPrivate {
 		return h.addrs
 	} else {
-		return filterUnspecificRelay(h.addrsF(addrs))
+		return h.addrsF(addrs)
 	}
 }
 
 func (h *AutoRelayHost) baseAddrs() []ma.Multiaddr {
-	return filterUnspecificRelay(h.addrsF(h.AllAddrs()))
+	return h.addrsF(h.AllAddrs())
 }
 
 func (h *AutoRelayHost) background(ctx context.Context) {
@@ -254,17 +252,6 @@ func (h *AutoRelayHost) doUpdateAddrs() {
 	}
 
 	h.addrs = raddrs
-}
-
-func filterUnspecificRelay(addrs []ma.Multiaddr) []ma.Multiaddr {
-	res := make([]ma.Multiaddr, 0, len(addrs))
-	for _, addr := range addrs {
-		if addr.Equal(unspecificRelay) {
-			continue
-		}
-		res = append(res, addr)
-	}
-	return res
 }
 
 func shuffleRelays(pis []pstore.PeerInfo) {
